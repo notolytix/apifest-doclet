@@ -318,7 +318,7 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
     private void generateMappingFile(List<ParsedEndpoint> parsedEndpoints, String outputFile) throws JAXBException {
         String mappingVersion = mappingVersionOption.getMappingVersion();
         String backendHost = backendHostOption.getBackendHost();
-        int backendPort = backendPortOption.getBackendPort();
+        String backendPort = backendPortOption.getBackendPort();
         if (outputFile == null || outputFile.isEmpty() || NULL.equalsIgnoreCase(outputFile)) {
             outputFile = String.format(DEFAULT_MAPPING_NAME, mappingVersion);
         }

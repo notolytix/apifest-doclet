@@ -5,7 +5,7 @@ import jdk.javadoc.doclet.Doclet.Option;
 import java.util.List;
 
 public class BackendPortOption implements Option {
-    private int backendPort;
+    private String backendPort;
 
     @Override
     public int getArgumentCount() {
@@ -38,15 +38,11 @@ public class BackendPortOption implements Option {
         if (backendPort == null || backendPort.isEmpty() || "null".equalsIgnoreCase(backendPort)) {
             throw new IllegalArgumentException("backend.host is not set.");
         }
-        try {
-            this.backendPort = Integer.parseInt(backendPort);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("backendPort is not an integer.");
-        }
+        this.backendPort = backendPort;
         return true;
     }
 
-    public int getBackendPort() {
+    public String getBackendPort() {
         return backendPort;
     }
 

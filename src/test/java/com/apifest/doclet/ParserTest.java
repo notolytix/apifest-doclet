@@ -119,18 +119,18 @@ public class ParserTest {
 
     @Test
     public void test_parse_endpoint_backend_tags_default_correct() {
-        Parser.parseEndpointBackendTags(tagMap, mappingEndpoint, "localhost", 1313);
+        Parser.parseEndpointBackendTags(tagMap, mappingEndpoint, "localhost", "1313");
         Assert.assertEquals(mappingEndpoint.getBackendHost(), "localhost");
-        Assert.assertEquals(mappingEndpoint.getBackendPort(), Integer.valueOf(1313));
+        Assert.assertEquals(mappingEndpoint.getBackendPort(), "1313");
     }
 
     @Test
     public void test_parse_endpoint_backend_tags_correct() {
         tagMap.put("apifest.backend.host", "testHost");
         tagMap.put("apifest.backend.port", "1111");
-        Parser.parseEndpointBackendTags(tagMap, mappingEndpoint, "localhost", 1313);
+        Parser.parseEndpointBackendTags(tagMap, mappingEndpoint, "localhost", "1313");
         Assert.assertEquals(mappingEndpoint.getBackendHost(), "testHost");
-        Assert.assertEquals(mappingEndpoint.getBackendPort(), Integer.valueOf(1111));
+        Assert.assertEquals(mappingEndpoint.getBackendPort(), "1111");
     }
 
     @Test

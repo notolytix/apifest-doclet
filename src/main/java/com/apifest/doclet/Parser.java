@@ -128,14 +128,13 @@ public class Parser
         return value.toString();
     }
 
-    static void parseEndpointBackendTags(Map<String, String> tagMap, MappingEndpoint mappingEndpoint, String defaultBackendHost, Integer defaultBackendPort) {
+    static void parseEndpointBackendTags(Map<String, String> tagMap, MappingEndpoint mappingEndpoint, String defaultBackendHost, String defaultBackendPort) {
         String endpointBackendHost = tagMap.get(APIFEST_BACKEND_HOST);
         String endpointBackendPort = tagMap.get(APIFEST_BACKEND_PORT);
         if (endpointBackendHost != null && endpointBackendPort != null) {
             try {
-                int port = Integer.parseInt(endpointBackendPort);
                 mappingEndpoint.setBackendHost(endpointBackendHost);
-                mappingEndpoint.setBackendPort(port);
+                mappingEndpoint.setBackendPort(endpointBackendPort);
             } catch (NumberFormatException e) {
                 System.out.println("ERROR: apifest.backend.port " + mappingEndpoint.getExternalEndpoint() + " for endpoint is not valid, "
                         + "default backend host and port will be used");
