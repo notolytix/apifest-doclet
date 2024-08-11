@@ -66,9 +66,12 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.servers.Server;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.PropertyException;
@@ -85,6 +88,7 @@ import jdk.javadoc.doclet.Reporter;
  * @author Rossitsa Borissova
  */
 public class Doclet implements jdk.javadoc.doclet.Doclet {
+
     Reporter reporter;
     ApplicationPathOption applicationPathOption = new ApplicationPathOption();
     BackendHostOption backendHostOption = new BackendHostOption();
@@ -102,6 +106,8 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
             mappingFilenameOption, mappingVersionOption, modeOption,
             customAnnotationOption
     );
+
+    OpenAPIGenerator openAPIGenerator;
 
     @Override
     public void init(Locale locale, Reporter reporter) {
@@ -209,7 +215,8 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
                 generateMappingFile(parsedEndpoints, mappingFilenameOption.getMappingFilename());
             }
             if (modeOption.getDocletModes().contains(DocletMode.OPEN_API)) {
-                generateOpenAPIFile(classes, parsedEndpoints, "openAPI-" + mappingDocsFilenameOption.getMappingDocsFilename());
+                openAPIGenerator = new OpenAPIGenerator();
+                openAPIGenerator.generateOpenAPIFile(classes, parsedEndpoints, "openAPI-" + mappingDocsFilenameOption.getMappingDocsFilename());
             }
         } catch (JsonGenerationException e) {
             System.out.println("ERROR: cannot create mapping documentation file, " + e.getMessage());
@@ -221,161 +228,6 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
         return true;
     }
 
-    protected void generateOpenAPIFile(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints, String outputFile) throws IOException {
-        JsonMapper mapper = new JsonMapper();
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
-
-        // TODO: add version and title as parameters
-        OpenAPI openAPI = createJaxrsOpenAPI(classes);
-        for (ParsedEndpoint parsed : parsedEndpoints) {
-            MappingEndpointDocumentation endpoint = parsed.getMappingEndpointDocumentation();
-            if (endpoint != null && !endpoint.isHidden()) {
-                // if path already exists, add the content
-                if (openAPI.getPaths() != null && openAPI.getPaths().get(endpoint.getEndpoint()) != null) {
-                    addDocumentationToPathItem(openAPI.getPaths().get(endpoint.getEndpoint()), endpoint);
-                } else {
-                    openAPI.path(endpoint.getEndpoint(), createPathItemDocumentation(endpoint));
-                }
-            }
-        }
-        mapper.writeValue(new File(outputFile), openAPI);
-    }
-
-    protected OpenAPI createJaxrsOpenAPI(Set<Class<?>> classes) {
-        Reader reader = new Reader(new OpenAPI());
-        OpenAPI openAPI = reader.read(classes);
-        Info info = new Info()
-                .version("1.0")
-                .title("NOTO API");
-
-        Contact contact = new Contact()
-                .name("NOTO API Team")
-                .email("foo@bar.baz")
-                .url("http://notolytix.com");
-        info.setContact(contact);
-        openAPI.setInfo(info);
-        return openAPI;
-    }
-
-    private PathItem createPathItemDocumentation(MappingEndpointDocumentation endpoint) {
-        PathItem path = new PathItem();
-        Operation operation = new Operation();
-        updateOperationDocumentation(endpoint, operation);
-        if (endpoint.getResultParamsDocumentation() != null && !endpoint.getResultParamsDocumentation().isEmpty()) {
-            ApiResponses responses = new ApiResponses();
-            for (ResultParamDocumentation resultParamDocumentation : endpoint.getResultParamsDocumentation()) {
-                ApiResponse response = new ApiResponse();
-                response.setDescription(resultParamDocumentation.getDescription());
-                responses.addApiResponse("200", response);
-            }
-            operation.setResponses(responses);
-        }
-
-        /*if (endpoint.getScope() != null) {
-            List<SecurityRequirement> securityRequirements = new ArrayList<>();
-            SecurityRequirement requirement = new SecurityRequirement();
-            requirement.addList("oauth2",endpoint.getScope());
-            securityRequirements.add(requirement);
-            operation.setSecurity(securityRequirements);
-        }*/
-        addOperationToPathItem(endpoint, path, operation);
-        return path;
-    }
-
-    protected static void addOperationToPathItem(MappingEndpointDocumentation endpoint, PathItem path, Operation operation) {
-        switch (endpoint.getMethod()) {
-            case HttpMethod.POST:
-                path.post(operation);
-                break;
-            case HttpMethod.GET:
-                path.get(operation);
-                break;
-            case HttpMethod.PUT:
-                path.put(operation);
-                break;
-            case HttpMethod.DELETE:
-                path.delete(operation);
-                break;
-            case HttpMethod.HEAD:
-                path.head(operation);
-                break;
-            case HttpMethod.OPTIONS:
-                path.options(operation);
-                break;
-            case HttpMethod.PATCH:
-                path.patch(operation);
-                break;
-            default:
-                // no default
-        }
-    }
-
-    protected void updateOperationDocumentation(MappingEndpointDocumentation endpoint, Operation operation) {
-        operation.setDescription(endpoint.getDescription());
-        operation.setSummary(endpoint.getSummary());
-        List<String> tags = new ArrayList<>();
-        tags.add(endpoint.getGroup());
-        operation.setTags(tags);
-        if (endpoint.getRequestParamsDocumentation() != null && !endpoint.getRequestParamsDocumentation().isEmpty()) {
-            List<Parameter> parameters = new ArrayList<>();
-            for (RequestParamDocumentation paramDocumentation : endpoint.getRequestParamsDocumentation()) {
-                Parameter param = new Parameter();
-                param.setName(paramDocumentation.getName());
-                param.setDescription(paramDocumentation.getDescription());
-                param.setRequired(paramDocumentation.isRequired());
-                param.example(paramDocumentation.getExampleValue());
-                parameters.add(param);
-            }
-            operation.setParameters(parameters);
-        }
-    }
-
-    protected void addDocumentationToPathItem(PathItem pathItem, MappingEndpointDocumentation endpoint) {
-        Operation operation = getOperation(pathItem, endpoint);
-        if (operation != null) {
-            updateOperationDocumentation(endpoint, operation);
-        }
-        if (endpoint.getResultParamsDocumentation() != null && !endpoint.getResultParamsDocumentation().isEmpty()) {
-            ApiResponses responses = new ApiResponses();
-            for (ResultParamDocumentation resultParamDocumentation : endpoint.getResultParamsDocumentation()) {
-                ApiResponse response = new ApiResponse();
-                response.setDescription(resultParamDocumentation.getDescription());
-                responses.addApiResponse("200", response);
-            }
-            operation.setResponses(responses);
-        }
-    }
-
-    protected static Operation getOperation(PathItem pathItem, MappingEndpointDocumentation endpoint) {
-        Operation operation = null;
-        switch (endpoint.getMethod()) {
-            case HttpMethod.POST:
-                operation = pathItem.getPost();
-                break;
-            case HttpMethod.GET:
-                operation = pathItem.getGet();
-                break;
-            case HttpMethod.PUT:
-                operation = pathItem.getPut();
-                break;
-            case HttpMethod.DELETE:
-                operation = pathItem.getDelete();
-                break;
-            case HttpMethod.HEAD:
-                operation = pathItem.getHead();
-                break;
-            case HttpMethod.OPTIONS:
-                operation = pathItem.getOptions();
-                break;
-            case HttpMethod.PATCH:
-                operation = pathItem.getPatch();
-                break;
-            default:
-                // no default
-        }
-        return operation;
-    }
 
     static class TagScanner extends SimpleDocTreeVisitor<Void, Void> {
         private final Map<String, String> tags;
@@ -448,6 +300,7 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
         if (externalEndpoint != null) {
 
             parsed = new ParsedEndpoint();
+            parsed.setEndpointPathWithoutVersion(externalEndpoint);
             mappingEndpoint = new MappingEndpoint();
             mappingEndpointDocumentation = new MappingEndpointDocumentation();
 
