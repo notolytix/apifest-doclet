@@ -187,7 +187,6 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
             }
             TypeElement classElement = (TypeElement) element;
             try {
-                System.out.println("class to load: " + classElement.getQualifiedName().toString());
                 classes.add(Class.forName(classElement.getQualifiedName().toString()));
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
