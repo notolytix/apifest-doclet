@@ -100,11 +100,13 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
     MappingVersionOption mappingVersionOption = new MappingVersionOption();
     ModeOption modeOption = new ModeOption();
     CustomAnnotationOption customAnnotationOption = new CustomAnnotationOption();
+    ApiVersionOption apiVersionOption = new ApiVersionOption();
+    ApiTestServerOption apiTestServerOption = new ApiTestServerOption();
     private final Set<Option> supportedOptions = Set.of(
             applicationPathOption, backendHostOption, backendPortOption,
             defaultActionClassOption, defaultFilterClassOption, mappingDocsFilenameOption,
             mappingFilenameOption, mappingVersionOption, modeOption,
-            customAnnotationOption
+            customAnnotationOption, apiVersionOption, apiTestServerOption
     );
 
     OpenAPIGenerator openAPIGenerator;
@@ -215,7 +217,7 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
                 generateMappingFile(parsedEndpoints, mappingFilenameOption.getMappingFilename());
             }
             if (modeOption.getDocletModes().contains(DocletMode.OPEN_API)) {
-                openAPIGenerator = new OpenAPIGenerator();
+                openAPIGenerator = new OpenAPIGenerator(apiVersionOption.getApiVersion(), apiTestServerOption.getApiTestServer());
                 openAPIGenerator.generateOpenAPIFile(classes, parsedEndpoints, "openAPI-" + mappingDocsFilenameOption.getMappingDocsFilename());
             }
         } catch (JsonGenerationException e) {

@@ -13,7 +13,6 @@ import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
@@ -29,12 +28,29 @@ import java.util.Set;
 
 public class OpenAPIGenerator {
 
-    private static final String OAUTH_SCHEMA_TYPE = "oauth2";
+    protected static final String OAUTH_SCHEMA_TYPE = "oauth2";
+    protected String apiVersion = null;
+    protected String apiTestServer = null;
 
-    void generateOpenAPIFile(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints, String outputFile) throws IOException {
+    public OpenAPIGenerator(String apiVersion, String apiTestServer) {
+        this.apiVersion = apiVersion;
+        this.apiTestServer = apiTestServer;
+    }
+
+    void generateOpenAPIFile(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints, String outputFile) {
         JsonMapper mapper = new JsonMapper();
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
+        OpenAPI openAPI = generateOpenAPI(classes, parsedEndpoints);
+        try {
+            mapper.writeValue(new File(outputFile), openAPI);
+        } catch (IOException e) {
+            System.err.println("Cannot write OpenAPI file");
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected OpenAPI generateOpenAPI(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints) {
         OpenAPI jaxrsOpenAPI = createJaxrsOpenAPI(classes);
         OpenAPI fullOpenAPI = createOpenAPIWithInfo();
         fullOpenAPI.components(jaxrsOpenAPI.getComponents());
@@ -50,6 +66,7 @@ public class OpenAPIGenerator {
                         addDocumentationToPathItem(pathItem, endpoint);
                         fullOpenAPI.path(endpointPath, pathItem);
                     } else {
+                        // should not happen
                         System.out.println("pathItem in jaxrsOpenAPI is null: " + parsed.getMappingEndpoint().getInternalEndpoint());
                     }
                 } else {
@@ -58,40 +75,38 @@ public class OpenAPIGenerator {
                     PathItem jaxrsPathItem = jaxrsOpenAPI.getPaths().get(parsed.getMappingEndpoint().getInternalEndpoint());
                     Operation operation = getOperation(jaxrsPathItem, endpoint);
                     if (operation != null) {
-                        updateOperationDocumentation(endpoint, operation);
-                        addOperationToPathItem(endpoint, existingPathItem, operation);
+                        updateOperationDocumentation(operation, endpoint);
+                        addOperationToPathItem(existingPathItem, operation, endpoint);
                     } else {
                         createPathItemDocumentation(existingPathItem, endpoint);
                     }
                 }
             }
         }
-        mapper.writeValue(new File(outputFile), fullOpenAPI);
+        return fullOpenAPI;
     }
 
     protected OpenAPI createOpenAPIWithInfo() {
         OpenAPI openAPI = new OpenAPI();
-        // TODO: add version param
         Info info = new Info()
-                .version("1.0")
+                .version(apiVersion)
                 .title("NOTO API");
 
         Contact contact = new Contact()
                 .name("NOTO")
                 .email("info@notolytix.com")
-                .url("https://noto360.com/");
+                .url("https://noto360.com");
         info.setContact(contact);
         openAPI.setInfo(info);
-        // TODO: add parameters for the server/s
         List<Server> serverList = new ArrayList<>();
         Server server = new Server();
-        server.description("my local env");
-        server.url("https://api.builder.lxd/1.0");
+        server.description("API test environment");
+        server.url(apiTestServer);
         serverList.add(server);
         openAPI.servers(serverList);
 
         SecurityRequirement securityRequirement = new SecurityRequirement();
-        securityRequirement.addList("oauth_20", "");
+        securityRequirement.addList(OAUTH_SCHEMA_TYPE, "");
         List<SecurityRequirement> securityRequirementList = new ArrayList<>();
         securityRequirementList.add(securityRequirement);
         openAPI.security(securityRequirementList);
@@ -104,14 +119,14 @@ public class OpenAPIGenerator {
         return reader.read(classes);
     }
 
-    private void createPathItemDocumentation(PathItem path, MappingEndpointDocumentation endpoint) {
+    protected void createPathItemDocumentation(PathItem path, MappingEndpointDocumentation endpoint) {
         Operation operation = new Operation();
         operation.setDescription(endpoint.getDescription());
-        updateOperationDocumentation(endpoint, operation);
-        addOperationToPathItem(endpoint, path, operation);
+        updateOperationDocumentation(operation, endpoint);
+        addOperationToPathItem(path, operation, endpoint);
     }
 
-    protected static void addOperationToPathItem(MappingEndpointDocumentation endpoint, PathItem path, Operation operation) {
+    protected void addOperationToPathItem(PathItem path, Operation operation, MappingEndpointDocumentation endpoint) {
         switch (endpoint.getMethod()) {
             case HttpMethod.POST:
                 path.post(operation);
@@ -139,7 +154,7 @@ public class OpenAPIGenerator {
         }
     }
 
-    protected void updateOperationDocumentation(MappingEndpointDocumentation endpoint, Operation operation) {
+    protected void updateOperationDocumentation(Operation operation, MappingEndpointDocumentation endpoint) {
         operation.setDescription(endpoint.getDescription());
         operation.setSummary(endpoint.getSummary());
         List<String> tags = new ArrayList<>();
@@ -156,12 +171,14 @@ public class OpenAPIGenerator {
                 parameters.add(param);
             }
             operation.setParameters(parameters);
+        }
 
+        if (endpoint.getResultParamsDocumentation() != null && !endpoint.getResultParamsDocumentation().isEmpty()) {
             ApiResponses responses = new ApiResponses();
             for (ResultParamDocumentation resultParamDocumentation : endpoint.getResultParamsDocumentation()) {
                 ApiResponse response = new ApiResponse();
                 response.setDescription(resultParamDocumentation.getDescription());
-                responses.addApiResponse("200", response);
+                responses.addApiResponse(resultParamDocumentation.getName(), response);
             }
             operation.setResponses(responses);
         }
@@ -169,7 +186,7 @@ public class OpenAPIGenerator {
         if (endpoint.getScope() != null) {
             List<SecurityRequirement> securityRequirements = new ArrayList<>();
             SecurityRequirement requirement = new SecurityRequirement();
-            requirement.addList(OAUTH_SCHEMA_TYPE,endpoint.getScope());
+            requirement.addList(OAUTH_SCHEMA_TYPE, endpoint.getScope());
             securityRequirements.add(requirement);
             operation.setSecurity(securityRequirements);
         }
@@ -178,19 +195,9 @@ public class OpenAPIGenerator {
     protected void addDocumentationToPathItem(PathItem pathItem, MappingEndpointDocumentation endpoint) {
         Operation operation = getOperation(pathItem, endpoint);
         if (operation != null) {
-            updateOperationDocumentation(endpoint, operation);
+            updateOperationDocumentation(operation, endpoint);
         } else {
             createPathItemDocumentation(pathItem, endpoint);
-        }
-
-        if (endpoint.getResultParamsDocumentation() != null && !endpoint.getResultParamsDocumentation().isEmpty()) {
-            ApiResponses responses = new ApiResponses();
-            for (ResultParamDocumentation resultParamDocumentation : endpoint.getResultParamsDocumentation()) {
-                ApiResponse response = new ApiResponse();
-                response.setDescription(resultParamDocumentation.getDescription());
-                responses.addApiResponse("200", response);
-            }
-            operation.setResponses(responses);
         }
     }
 
