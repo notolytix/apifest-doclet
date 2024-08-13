@@ -21,10 +21,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -43,18 +45,34 @@ import com.apifest.api.Mapping.EndpointsWrapper;
 import com.apifest.api.MappingDocumentation;
 import com.apifest.api.MappingEndpoint;
 import com.apifest.api.MappingEndpointDocumentation;
+import com.apifest.api.params.RequestParamDocumentation;
+import com.apifest.api.params.ResultParamDocumentation;
 import com.apifest.doclet.option.*;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.module.jakarta.xmlbind.JakartaXmlBindAnnotationIntrospector;
 import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.UnknownBlockTagTree;
 import com.sun.source.util.SimpleDocTreeVisitor;
+import io.swagger.v3.jaxrs2.Reader;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.parameters.Parameter;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.servers.Server;
+import jakarta.ws.rs.HttpMethod;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.PropertyException;
 import jakarta.xml.bind.JAXBContext;
@@ -70,6 +88,7 @@ import jdk.javadoc.doclet.Reporter;
  * @author Rossitsa Borissova
  */
 public class Doclet implements jdk.javadoc.doclet.Doclet {
+
     Reporter reporter;
     ApplicationPathOption applicationPathOption = new ApplicationPathOption();
     BackendHostOption backendHostOption = new BackendHostOption();
@@ -81,12 +100,16 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
     MappingVersionOption mappingVersionOption = new MappingVersionOption();
     ModeOption modeOption = new ModeOption();
     CustomAnnotationOption customAnnotationOption = new CustomAnnotationOption();
+    ApiVersionOption apiVersionOption = new ApiVersionOption();
+    ApiTestServerOption apiTestServerOption = new ApiTestServerOption();
     private final Set<Option> supportedOptions = Set.of(
             applicationPathOption, backendHostOption, backendPortOption,
             defaultActionClassOption, defaultFilterClassOption, mappingDocsFilenameOption,
             mappingFilenameOption, mappingVersionOption, modeOption,
-            customAnnotationOption
+            customAnnotationOption, apiVersionOption, apiTestServerOption
     );
+
+    OpenAPIGenerator openAPIGenerator;
 
     @Override
     public void init(Locale locale, Reporter reporter) {
@@ -156,12 +179,18 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
         if (!validateConfiguration()) {
             return false;
         }
+        Set<Class<?>> classes = new HashSet<>();
         List<ParsedEndpoint> parsedEndpoints = new ArrayList<>();
         for (Element element : docEnv.getIncludedElements()) {
             if (element.getKind() != ElementKind.INTERFACE) {
                 continue;
             }
             TypeElement classElement = (TypeElement) element;
+            try {
+                classes.add(Class.forName(classElement.getQualifiedName().toString()));
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
             for (Element enclosedElement : classElement.getEnclosedElements()) {
                 if (!(enclosedElement instanceof ExecutableElement methodElement)) {
                     continue;
@@ -186,6 +215,10 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
             if (modeOption.getDocletModes().contains(DocletMode.MAPPING)) {
                 generateMappingFile(parsedEndpoints, mappingFilenameOption.getMappingFilename());
             }
+            if (modeOption.getDocletModes().contains(DocletMode.OPEN_API)) {
+                openAPIGenerator = new OpenAPIGenerator(apiVersionOption.getApiVersion(), apiTestServerOption.getApiTestServer());
+                openAPIGenerator.generateOpenAPIFile(classes, parsedEndpoints, "openAPI-" + mappingDocsFilenameOption.getMappingDocsFilename());
+            }
         } catch (JsonGenerationException e) {
             System.out.println("ERROR: cannot create mapping documentation file, " + e.getMessage());
             return false;
@@ -195,6 +228,7 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
         }
         return true;
     }
+
 
     static class TagScanner extends SimpleDocTreeVisitor<Void, Void> {
         private final Map<String, String> tags;
@@ -267,6 +301,7 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
         if (externalEndpoint != null) {
 
             parsed = new ParsedEndpoint();
+            parsed.setEndpointPathWithoutVersion(externalEndpoint);
             mappingEndpoint = new MappingEndpoint();
             mappingEndpointDocumentation = new MappingEndpointDocumentation();
 

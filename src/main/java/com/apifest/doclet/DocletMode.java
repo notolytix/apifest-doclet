@@ -22,7 +22,8 @@ package com.apifest.doclet;
  *
  */
 public enum DocletMode {
-    MAPPING("mapping"), DOC("doc");
+    MAPPING("mapping"), DOC("doc"), OPEN_API("openAPI");
+
     private String mode;
 
     private DocletMode(String mode) {
