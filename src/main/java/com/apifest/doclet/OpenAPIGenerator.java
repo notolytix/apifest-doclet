@@ -4,9 +4,13 @@ import com.apifest.api.MappingEndpointDocumentation;
 import com.apifest.api.params.RequestParamDocumentation;
 import com.apifest.api.params.ResultParamDocumentation;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import io.swagger.v3.core.util.ObjectMapperFactory;
 import io.swagger.v3.jaxrs2.Reader;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -16,7 +20,10 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.OAuthFlow;
+import io.swagger.v3.oas.models.security.OAuthFlows;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import jakarta.ws.rs.HttpMethod;
 
@@ -28,7 +35,7 @@ import java.util.Set;
 
 public class OpenAPIGenerator {
 
-    protected static final String OAUTH_SCHEMA_TYPE = "oauth2";
+    protected static final String NOTO_SECURITY_SCHEME = "noto-oauth";
     protected String apiVersion = null;
     protected String apiTestServer = null;
 
@@ -38,7 +45,8 @@ public class OpenAPIGenerator {
     }
 
     void generateOpenAPIFile(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints, String outputFile) {
-        JsonMapper mapper = new JsonMapper();
+        var mapper = ObjectMapperFactory.createJson();
+        mapper.writer(new DefaultPrettyPrinter());
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
         OpenAPI openAPI = generateOpenAPI(classes, parsedEndpoints);
@@ -53,7 +61,16 @@ public class OpenAPIGenerator {
     protected OpenAPI generateOpenAPI(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints) {
         OpenAPI jaxrsOpenAPI = createJaxrsOpenAPI(classes);
         OpenAPI fullOpenAPI = createOpenAPIWithInfo();
-        fullOpenAPI.components(jaxrsOpenAPI.getComponents());
+        fullOpenAPI.setComponents(jaxrsOpenAPI.getComponents() == null ? new Components() : jaxrsOpenAPI.getComponents());
+        var oAuthFlow = new OAuthFlow();
+        oAuthFlow.setAuthorizationUrl("/oauth/authorize");
+        oAuthFlow.setTokenUrl("/oauth/token");
+        var oAuthFlows = new OAuthFlows();
+        oAuthFlows.setAuthorizationCode(oAuthFlow);
+        var securityScheme = new SecurityScheme();
+        securityScheme.setType(SecurityScheme.Type.OAUTH2);
+        securityScheme.setFlows(oAuthFlows);
+        fullOpenAPI.getComponents().addSecuritySchemes(NOTO_SECURITY_SCHEME, securityScheme);
         for (ParsedEndpoint parsed : parsedEndpoints) {
             MappingEndpointDocumentation endpoint = parsed.getMappingEndpointDocumentation();
             if (endpoint != null && !endpoint.isHidden()) {
@@ -91,7 +108,6 @@ public class OpenAPIGenerator {
         Info info = new Info()
                 .version(apiVersion)
                 .title("NOTO API");
-
         Contact contact = new Contact()
                 .name("NOTO")
                 .email("info@notolytix.com")
@@ -104,13 +120,12 @@ public class OpenAPIGenerator {
         server.url(apiTestServer);
         serverList.add(server);
         openAPI.servers(serverList);
-
-        SecurityRequirement securityRequirement = new SecurityRequirement();
-        securityRequirement.addList(OAUTH_SCHEMA_TYPE, "");
-        List<SecurityRequirement> securityRequirementList = new ArrayList<>();
-        securityRequirementList.add(securityRequirement);
-        openAPI.security(securityRequirementList);
         openAPI.setPaths(new Paths());
+        List<SecurityRequirement> securityRequirements = new ArrayList<>();
+        SecurityRequirement securityRequirement = new SecurityRequirement();
+        securityRequirement.addList(NOTO_SECURITY_SCHEME, new ArrayList<>());
+        securityRequirements.add(securityRequirement);
+        openAPI.setSecurity(securityRequirements);
         return openAPI;
     }
 
@@ -186,7 +201,7 @@ public class OpenAPIGenerator {
         if (endpoint.getScope() != null) {
             List<SecurityRequirement> securityRequirements = new ArrayList<>();
             SecurityRequirement requirement = new SecurityRequirement();
-            requirement.addList(OAUTH_SCHEMA_TYPE, endpoint.getScope());
+            requirement.addList(NOTO_SECURITY_SCHEME, endpoint.getScope());
             securityRequirements.add(requirement);
             operation.setSecurity(securityRequirements);
         }
