@@ -14,7 +14,6 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -22,13 +21,10 @@ import java.util.Set;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.matches;
-import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -322,7 +318,7 @@ public class OpenAPIGeneratorTest {
         assertEquals(operation.getDescription(), description);
         assertEquals(operation.getSummary(), summary);
         assertEquals(operation.getTags().get(0), group);
-        assertEquals(operation.getSecurity().get(0).get(OpenAPIGenerator.OAUTH_SCHEMA_TYPE).get(0), scope);
+        assertEquals(operation.getSecurity().get(0).get(OpenAPIGenerator.NOTO_SECURITY_SCHEME).get(0), scope);
         Parameter userParameter = operation.getParameters().get(0);
         assertEquals(userParameter.getName(), "user");
         assertEquals(userParameter.getDescription(), "The user the info will be returned about");
@@ -417,7 +413,7 @@ public class OpenAPIGeneratorTest {
         assertEquals(getUserOperation.getSummary(), "Current user's access information");
         assertEquals(getUserOperation.getDescription(), "This web service returns information about the user");
         assertEquals(getUserOperation.getTags().get(0), "User");
-        assertEquals(getUserOperation.getSecurity().get(0).get(OpenAPIGenerator.OAUTH_SCHEMA_TYPE).get(0), "umbrella");
+        assertEquals(getUserOperation.getSecurity().get(0).get(OpenAPIGenerator.NOTO_SECURITY_SCHEME).get(0), "umbrella");
 
         Operation putUserOperation = path.getPut();
         assertNotNull(putUserOperation);
