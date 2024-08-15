@@ -63,8 +63,7 @@ public class OpenAPIGenerator {
         OpenAPI fullOpenAPI = createOpenAPIWithInfo();
         fullOpenAPI.setComponents(jaxrsOpenAPI.getComponents() == null ? new Components() : jaxrsOpenAPI.getComponents());
         var oAuthFlow = new OAuthFlow();
-        oAuthFlow.setAuthorizationUrl("/oauth20/tokens");
-        oAuthFlow.setTokenUrl("/oauth20/tokens");
+        oAuthFlow.setTokenUrl(apiTestServer + "/oauth20/tokens");
         var oAuthFlows = new OAuthFlows();
         oAuthFlows.setPassword(oAuthFlow);
         var securityScheme = new SecurityScheme();
