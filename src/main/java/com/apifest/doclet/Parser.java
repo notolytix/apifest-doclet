@@ -294,6 +294,7 @@ public class Parser
             paramDocumentation.setDescription(value);
             paramDocumentation.setType(tagMap.get(REQUEST_PARAMS_PREFIX + name + ".type"));
             paramDocumentation.setRequired(!tagMap.containsKey(REQUEST_PARAMS_PREFIX + name + ".optional"));
+            paramDocumentation.setIn(tagMap.get(REQUEST_PARAMS_PREFIX + name + ".in"));
             paramDocumentation.setExampleValue(tagMap.get(REQUEST_PARAMS_PREFIX + name + ".exampleValue"));
             paramsList.add(paramDocumentation);
         }
