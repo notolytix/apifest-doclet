@@ -65,6 +65,7 @@ public class Parser
     private static final String APIFEST_DOCS_GROUP = "apifest.docs.group";
     private static final String APIFEST_DOCS_HIDDEN = "apifest.docs.hidden";
     private static final String APIFEST_AUTH_TYPE = "apifest.auth.type";
+    private static final Pattern PARAMETER_IN_PATTERN = Pattern.compile("(\\{@link com.apifest.api.params.ParameterIn#)(\\w+)(\\})");
 
     private static final String NOT_SUPPORTED_VALUE = "value \"%s\" not supported for %s tag";
 
@@ -295,7 +296,15 @@ public class Parser
             paramDocumentation.setType(tagMap.get(REQUEST_PARAMS_PREFIX + name + ".type"));
             paramDocumentation.setRequired(!tagMap.containsKey(REQUEST_PARAMS_PREFIX + name + ".optional"));
             if (tagMap.get(REQUEST_PARAMS_PREFIX + name + ".in") != null) {
-                paramDocumentation.setIn(ParameterIn.valueOf(tagMap.get(REQUEST_PARAMS_PREFIX + name + ".in")));
+                // the value looks like {@link com.apifest.api.params.ParameterIn#QUERY}
+                String inParam = tagMap.get(REQUEST_PARAMS_PREFIX + name + ".in");
+                Matcher inMatcher = PARAMETER_IN_PATTERN.matcher(inParam);
+                if (inMatcher.find()) {
+                    String inType = inMatcher.group(2);
+                    paramDocumentation.setIn(ParameterIn.valueOf(inType));
+                } else {
+                    System.out.println("Unsupported .in type - " + inParam);
+                }
             }
             paramDocumentation.setExampleValue(tagMap.get(REQUEST_PARAMS_PREFIX + name + ".exampleValue"));
             paramsList.add(paramDocumentation);

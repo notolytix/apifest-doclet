@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.apifest.api.params.ParameterIn;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -57,6 +58,7 @@ public class ParserTest {
         tagMap.put("apifest.docs.paramsDescription", " Parameter description yo!");
         tagMap.put("apifest.docs.params.audienceId", " audienceId is compulsory");
         tagMap.put("apifest.docs.params.audienceId.type", "number");
+        tagMap.put("apifest.docs.params.audienceId.in", "{@link com.apifest.api.params.ParameterIn#QUERY}");
         tagMap.put("apifest.docs.params.audienceId.default", "There is no default because it is compulsory     ");
         tagMap.put("apifest.docs.params.audienceId.exampleValue", "12345678");
 
@@ -64,6 +66,7 @@ public class ParserTest {
         tagMap.put("apifest.docs.params.audienceId2.type", "number");
         tagMap.put("apifest.docs.params.audienceId2.default", " 7nadesetipolovina");
         tagMap.put("apifest.docs.params.audienceId2.optional", "");
+        tagMap.put("apifest.docs.params.audienceId2.in", "{@link com.apifest.api.params.ParameterIn#QUERY}");
         tagMap.put("apifest.docs.resultsDescription", " Result description is the best!");
         tagMap.put("apifest.docs.results.approximate_count", " The  approximate  number of accounts recognised by fb in the CA     ");
         tagMap.put("apifest.docs.results.approximate_count.type", "number");
@@ -208,6 +211,7 @@ public class ParserTest {
             Assert.assertEquals(currentParam.getType(), tagMap.get(APIFEST_DOCS_PARAMS_PREFIX + currentName + ".type"));
             Assert.assertEquals(currentParam.getDescription(), tagMap.get(APIFEST_DOCS_PARAMS_PREFIX + currentName));
             Assert.assertEquals(currentParam.getExampleValue(), tagMap.get(APIFEST_DOCS_PARAMS_PREFIX + currentName + ".exampleValue"));
+            Assert.assertEquals(currentParam.getIn(), ParameterIn.QUERY);
             Assert.assertEquals(testReqParam.size(), 2);
             if (optional == null) {
                 Assert.assertEquals(currentParam.isRequired(), true);

@@ -58,9 +58,6 @@ public interface Users {
      * @apifest.scope umbrella
      * @apifest.auth.type user
      *
-     * @apifest.queryParams.division Specifies the current division
-     * @apifest.queryParams.division.required true
-     *
      * @apifest.re.streamId \w[\w-\\+%.\s*]+
      * @apifest.re.eventId [\w{}][\w-|%.{}]*
      * @apifest.docs.group Event Feed
@@ -74,7 +71,7 @@ public interface Users {
      *
      * @apifest.docs.params.division Specifies the division
      * @apifest.docs.params.division.type String
-     * @apifest.docs.params.division.in query
+     * @apifest.docs.params.division.in {@link com.apifest.api.params.ParameterIn#QUERY}
      * @apifest.docs.params.division.required true
      * @apifest.docs.params.division.exampleValue payments
      *
