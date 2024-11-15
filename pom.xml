@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.apifest</groupId>
   <artifactId>apifest-doclet</artifactId>
-  <version>3.0.2-SNAPSHOT</version>
+  <version>3.0.2</version>
 
   <distributionManagement>
     <snapshotRepository>
@@ -27,7 +27,7 @@
     <dependency>
       <groupId>com.apifest</groupId>
       <artifactId>apifest-api</artifactId>
-      <version>3.0.1-SNAPSHOT</version>
+      <version>3.0.1</version>
     </dependency>
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
