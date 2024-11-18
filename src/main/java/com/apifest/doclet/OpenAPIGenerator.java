@@ -1,13 +1,12 @@
 package com.apifest.doclet;
 
 import com.apifest.api.MappingEndpointDocumentation;
+import com.apifest.api.params.ParameterIn;
 import com.apifest.api.params.RequestParamDocumentation;
 import com.apifest.api.params.ResultParamDocumentation;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.swagger.v3.core.util.ObjectMapperFactory;
 import io.swagger.v3.jaxrs2.Reader;
 import io.swagger.v3.oas.models.Components;
@@ -30,7 +29,9 @@ import jakarta.ws.rs.HttpMethod;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class OpenAPIGenerator {
@@ -133,15 +134,15 @@ public class OpenAPIGenerator {
         return reader.read(classes);
     }
 
-    protected void createPathItemDocumentation(PathItem path, MappingEndpointDocumentation endpoint) {
+    protected void createPathItemDocumentation(PathItem path, MappingEndpointDocumentation endpointDocumentation) {
         Operation operation = new Operation();
-        operation.setDescription(endpoint.getDescription());
-        updateOperationDocumentation(operation, endpoint);
-        addOperationToPathItem(path, operation, endpoint);
+        operation.setDescription(endpointDocumentation.getDescription());
+        updateOperationDocumentation(operation, endpointDocumentation);
+        addOperationToPathItem(path, operation, endpointDocumentation);
     }
 
-    protected void addOperationToPathItem(PathItem path, Operation operation, MappingEndpointDocumentation endpoint) {
-        switch (endpoint.getMethod()) {
+    protected void addOperationToPathItem(PathItem path, Operation operation, MappingEndpointDocumentation endpointDocumentation) {
+        switch (endpointDocumentation.getMethod()) {
             case HttpMethod.POST:
                 path.post(operation);
                 break;
@@ -168,28 +169,36 @@ public class OpenAPIGenerator {
         }
     }
 
-    protected void updateOperationDocumentation(Operation operation, MappingEndpointDocumentation endpoint) {
-        operation.setDescription(endpoint.getDescription());
-        operation.setSummary(endpoint.getSummary());
+    protected void updateOperationDocumentation(Operation operation, MappingEndpointDocumentation endpointDocumentation) {
+        operation.setDescription(endpointDocumentation.getDescription());
+        operation.setSummary(endpointDocumentation.getSummary());
         List<String> tags = new ArrayList<>();
-        tags.add(endpoint.getGroup());
+        tags.add(endpointDocumentation.getGroup());
         operation.setTags(tags);
-        if (endpoint.getRequestParamsDocumentation() != null && !endpoint.getRequestParamsDocumentation().isEmpty()) {
-            List<Parameter> parameters = new ArrayList<>();
-            for (RequestParamDocumentation paramDocumentation : endpoint.getRequestParamsDocumentation()) {
-                Parameter param = new Parameter();
+        if (endpointDocumentation.getRequestParamsDocumentation() != null && !endpointDocumentation.getRequestParamsDocumentation().isEmpty()) {
+            List<Parameter> parameters = (operation.getParameters() != null) ? operation.getParameters() : new ArrayList<>();
+            Map<String, Parameter> parametersMap = new HashMap<>();
+            parameters.stream().forEach(parameter -> parametersMap.put(parameter.getName(), parameter));
+            List<Parameter> newParameters = new ArrayList<>();
+            for (RequestParamDocumentation paramDocumentation : endpointDocumentation.getRequestParamsDocumentation()) {
+                Parameter param = (parametersMap.containsKey(paramDocumentation.getName())) ? parametersMap.get(paramDocumentation.getName()) : new Parameter();
                 param.setName(paramDocumentation.getName());
                 param.setDescription(paramDocumentation.getDescription());
                 param.setRequired(paramDocumentation.isRequired());
                 param.example(paramDocumentation.getExampleValue());
-                parameters.add(param);
+                if (paramDocumentation.getIn() != null) {
+                    param.in(paramDocumentation.getIn().toString());
+                } else {
+                    param.in(ParameterIn.PATH.toString());
+                }
+                newParameters.add(param);
             }
-            operation.setParameters(parameters);
+            operation.setParameters(newParameters);
         }
 
-        if (endpoint.getResultParamsDocumentation() != null && !endpoint.getResultParamsDocumentation().isEmpty()) {
+        if (endpointDocumentation.getResultParamsDocumentation() != null && !endpointDocumentation.getResultParamsDocumentation().isEmpty()) {
             ApiResponses responses = new ApiResponses();
-            for (ResultParamDocumentation resultParamDocumentation : endpoint.getResultParamsDocumentation()) {
+            for (ResultParamDocumentation resultParamDocumentation : endpointDocumentation.getResultParamsDocumentation()) {
                 ApiResponse response = new ApiResponse();
                 response.setDescription(resultParamDocumentation.getDescription());
                 responses.addApiResponse(resultParamDocumentation.getName(), response);
@@ -197,27 +206,27 @@ public class OpenAPIGenerator {
             operation.setResponses(responses);
         }
 
-        if (endpoint.getScope() != null) {
+        if (endpointDocumentation.getScope() != null) {
             List<SecurityRequirement> securityRequirements = new ArrayList<>();
             SecurityRequirement requirement = new SecurityRequirement();
-            requirement.addList(NOTO_SECURITY_SCHEME, endpoint.getScope());
+            requirement.addList(NOTO_SECURITY_SCHEME, endpointDocumentation.getScope());
             securityRequirements.add(requirement);
             operation.setSecurity(securityRequirements);
         }
     }
 
-    protected void addDocumentationToPathItem(PathItem pathItem, MappingEndpointDocumentation endpoint) {
-        Operation operation = getOperation(pathItem, endpoint);
+    protected void addDocumentationToPathItem(PathItem pathItem, MappingEndpointDocumentation endpointDocumentation) {
+        Operation operation = getOperation(pathItem, endpointDocumentation);
         if (operation != null) {
-            updateOperationDocumentation(operation, endpoint);
+            updateOperationDocumentation(operation, endpointDocumentation);
         } else {
-            createPathItemDocumentation(pathItem, endpoint);
+            createPathItemDocumentation(pathItem, endpointDocumentation);
         }
     }
 
-    protected Operation getOperation(PathItem pathItem, MappingEndpointDocumentation endpoint) {
+    protected Operation getOperation(PathItem pathItem, MappingEndpointDocumentation endpointDocumentation) {
         Operation operation = null;
-        switch (endpoint.getMethod()) {
+        switch (endpointDocumentation.getMethod()) {
             case HttpMethod.POST:
                 operation = pathItem.getPost();
                 break;
