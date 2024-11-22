@@ -4,6 +4,7 @@ import com.apifest.api.MappingEndpointDocumentation;
 import com.apifest.api.params.ParameterIn;
 import com.apifest.api.params.RequestParamDocumentation;
 import com.apifest.api.params.ResultParamDocumentation;
+import com.apifest.doclet.option.CustomAnnotationAddToDescriptionOption;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -33,10 +34,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 
 public class OpenAPIGenerator {
 
     protected static final String NOTO_SECURITY_SCHEME = "noto-oauth";
+    protected static final String LINE_SEPARATOR = "\n\n";
+    protected static final String CLASSNAME_PATTERN = "^[A-Z]+\\w+";
     protected String apiVersion = null;
     protected String apiTestServer = null;
 
@@ -45,12 +50,13 @@ public class OpenAPIGenerator {
         this.apiTestServer = apiTestServer;
     }
 
-    void generateOpenAPIFile(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints, String outputFile) {
+    void generateOpenAPIFile(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints, String outputFile,
+                             CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption) {
         var mapper = ObjectMapperFactory.createJson();
         mapper.writer(new DefaultPrettyPrinter());
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
         mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
-        OpenAPI openAPI = generateOpenAPI(classes, parsedEndpoints);
+        OpenAPI openAPI = generateOpenAPI(classes, parsedEndpoints, customAnnotationAddToDescriptionOption);
         try {
             mapper.writeValue(new File(outputFile), openAPI);
         } catch (IOException e) {
@@ -59,7 +65,8 @@ public class OpenAPIGenerator {
         }
     }
 
-    protected OpenAPI generateOpenAPI(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints) {
+    protected OpenAPI generateOpenAPI(Set<Class<?>> classes, List<ParsedEndpoint> parsedEndpoints,
+                                      CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption) {
         OpenAPI jaxrsOpenAPI = createJaxrsOpenAPI(classes);
         OpenAPI fullOpenAPI = createOpenAPIWithInfo();
         fullOpenAPI.setComponents(jaxrsOpenAPI.getComponents() == null ? new Components() : jaxrsOpenAPI.getComponents());
@@ -80,7 +87,7 @@ public class OpenAPIGenerator {
                     PathItem pathItem = jaxrsOpenAPI.getPaths().get(parsed.getMappingEndpoint().getInternalEndpoint());
                     // copy the JAXRS documentation and add ApiFest documentation
                     if (pathItem != null) {
-                        addDocumentationToPathItem(pathItem, endpoint);
+                        addDocumentationToPathItem(pathItem, endpoint, customAnnotationAddToDescriptionOption);
                         fullOpenAPI.path(endpointPath, pathItem);
                     } else {
                         // should not happen
@@ -92,10 +99,10 @@ public class OpenAPIGenerator {
                     PathItem jaxrsPathItem = jaxrsOpenAPI.getPaths().get(parsed.getMappingEndpoint().getInternalEndpoint());
                     Operation operation = getOperation(jaxrsPathItem, endpoint);
                     if (operation != null) {
-                        updateOperationDocumentation(operation, endpoint);
+                        updateOperationDocumentation(operation, endpoint, customAnnotationAddToDescriptionOption);
                         addOperationToPathItem(existingPathItem, operation, endpoint);
                     } else {
-                        createPathItemDocumentation(existingPathItem, endpoint);
+                        createPathItemDocumentation(existingPathItem, endpoint, customAnnotationAddToDescriptionOption);
                     }
                 }
             }
@@ -134,11 +141,52 @@ public class OpenAPIGenerator {
         return reader.read(classes);
     }
 
-    protected void createPathItemDocumentation(PathItem path, MappingEndpointDocumentation endpointDocumentation) {
+    protected void createPathItemDocumentation(PathItem path, MappingEndpointDocumentation endpointDocumentation,
+                                               CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption) {
         Operation operation = new Operation();
         operation.setDescription(endpointDocumentation.getDescription());
-        updateOperationDocumentation(operation, endpointDocumentation);
+        updateOperationDocumentation(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
         addOperationToPathItem(path, operation, endpointDocumentation);
+    }
+
+    protected void addCustomPropertiesToDescription(Operation operation, MappingEndpointDocumentation endpointDocumentation,
+                                                     CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption) {
+        if (endpointDocumentation.getCustomProperties() != null) {
+            StringBuilder description = new StringBuilder();
+            if (operation.getDescription() != null) {
+                description.append(operation.getDescription());
+                description.append(LINE_SEPARATOR);
+            }
+
+            for (Map.Entry entry : endpointDocumentation.getCustomProperties().entrySet()) {
+                if (customAnnotationAddToDescriptionOption.getCustomAnnotationsAddToDescription() != null &&
+                    customAnnotationAddToDescriptionOption.getCustomAnnotationsAddToDescription().containsKey(entry.getKey())) {
+                    // get the annotation class only
+                    String annotationName = getClassName(entry.getKey().toString());
+                    description.append(annotationName + " " + entry.getValue());
+                    description.append(LINE_SEPARATOR);
+                }
+            }
+            operation.setDescription(description.toString());
+        }
+    }
+
+    protected String getClassName(String fullClassNameWithProperties) {
+        String result = null;
+        StringTokenizer tokenizer = new StringTokenizer(fullClassNameWithProperties, ".");
+        int tokensCount = tokenizer.countTokens();
+        int i = 1;
+        while(tokenizer.hasMoreTokens()) {
+            String cur = tokenizer.nextToken();
+            if (i == tokensCount || i == tokensCount - 1) {
+                if (cur.matches(CLASSNAME_PATTERN)) {
+                    result = cur;
+                    break;
+                }
+            }
+            i++;
+        }
+        return result;
     }
 
     protected void addOperationToPathItem(PathItem path, Operation operation, MappingEndpointDocumentation endpointDocumentation) {
@@ -169,8 +217,10 @@ public class OpenAPIGenerator {
         }
     }
 
-    protected void updateOperationDocumentation(Operation operation, MappingEndpointDocumentation endpointDocumentation) {
+    protected void updateOperationDocumentation(Operation operation, MappingEndpointDocumentation endpointDocumentation,
+                                                CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption) {
         operation.setDescription(endpointDocumentation.getDescription());
+        addCustomPropertiesToDescription(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
         operation.setSummary(endpointDocumentation.getSummary());
         List<String> tags = new ArrayList<>();
         tags.add(endpointDocumentation.getGroup());
@@ -215,12 +265,13 @@ public class OpenAPIGenerator {
         }
     }
 
-    protected void addDocumentationToPathItem(PathItem pathItem, MappingEndpointDocumentation endpointDocumentation) {
+    protected void addDocumentationToPathItem(PathItem pathItem, MappingEndpointDocumentation endpointDocumentation,
+                                              CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption) {
         Operation operation = getOperation(pathItem, endpointDocumentation);
         if (operation != null) {
-            updateOperationDocumentation(operation, endpointDocumentation);
+            updateOperationDocumentation(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
         } else {
-            createPathItemDocumentation(pathItem, endpointDocumentation);
+            createPathItemDocumentation(pathItem, endpointDocumentation, customAnnotationAddToDescriptionOption);
         }
     }
 
