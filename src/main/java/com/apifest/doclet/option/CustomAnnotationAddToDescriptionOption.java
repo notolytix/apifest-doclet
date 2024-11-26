@@ -39,7 +39,6 @@ public class CustomAnnotationAddToDescriptionOption implements Doclet.Option {
     @Override
     public boolean process(String option, List<String> arguments) {
         String customAnnotationsValue = arguments.get(0);
-        System.out.println("process custom annotations add to description");
         for (String annotation : customAnnotationsValue.split(",")) {
             if (annotation.contains(":")) {
                 String[] tokens = annotation.split(":");

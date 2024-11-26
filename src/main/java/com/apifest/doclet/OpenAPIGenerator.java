@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.regex.Pattern;
 
 public class OpenAPIGenerator {
 
@@ -155,7 +154,6 @@ public class OpenAPIGenerator {
             StringBuilder description = new StringBuilder();
             if (operation.getDescription() != null) {
                 description.append(operation.getDescription());
-                description.append(LINE_SEPARATOR);
             }
 
             for (Map.Entry entry : endpointDocumentation.getCustomProperties().entrySet()) {
@@ -163,8 +161,10 @@ public class OpenAPIGenerator {
                     customAnnotationAddToDescriptionOption.getCustomAnnotationsAddToDescription().containsKey(entry.getKey())) {
                     // get the annotation class only
                     String annotationName = getClassName(entry.getKey().toString());
-                    description.append(annotationName + " " + entry.getValue());
-                    description.append(LINE_SEPARATOR);
+                    if (annotationName != null) {
+                        description.append(LINE_SEPARATOR);
+                        description.append(annotationName + " " + entry.getValue());
+                    }
                 }
             }
             operation.setDescription(description.toString());
