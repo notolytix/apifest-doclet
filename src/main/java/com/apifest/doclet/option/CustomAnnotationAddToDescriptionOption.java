@@ -3,13 +3,11 @@ package com.apifest.doclet.option;
 import jdk.javadoc.doclet.Doclet;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class CustomAnnotationAddToDescriptionOption implements Doclet.Option {
-    private Map<String, List<String>> customAnnotationsAddToDescription = new HashMap<>();
+
+    private List<String> customAnnotationsAddToDescription = new ArrayList<>();
 
     @Override
     public int getArgumentCount() {
@@ -40,18 +38,12 @@ public class CustomAnnotationAddToDescriptionOption implements Doclet.Option {
     public boolean process(String option, List<String> arguments) {
         String customAnnotationsValue = arguments.get(0);
         for (String annotation : customAnnotationsValue.split(",")) {
-            if (annotation.contains(":")) {
-                String[] tokens = annotation.split(":");
-                List<String> annotationAttributeList = customAnnotationsAddToDescription.computeIfAbsent(tokens[0], k -> new ArrayList<>());
-                annotationAttributeList.add(tokens[1]);
-            } else {
-                customAnnotationsAddToDescription.put(annotation, Collections.emptyList());
-            }
+            customAnnotationsAddToDescription.add(annotation);
         }
         return true;
     }
 
-    public Map<String, List<String>> getCustomAnnotationsAddToDescription() {
+    public List<String> getCustomAnnotationsAddToDescription() {
         return customAnnotationsAddToDescription;
     }
 }

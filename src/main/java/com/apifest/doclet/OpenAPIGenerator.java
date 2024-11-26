@@ -40,7 +40,7 @@ public class OpenAPIGenerator {
 
     protected static final String NOTO_SECURITY_SCHEME = "noto-oauth";
     protected static final String LINE_SEPARATOR = "\n\n";
-    protected static final String CLASSNAME_PATTERN = "^[A-Z]+\\w+";
+    protected static final String CLASSNAME_PATTERN = "^[A-Z]+[a-zA-Z\\d_$]*";
     protected String apiVersion = null;
     protected String apiTestServer = null;
 
@@ -155,10 +155,9 @@ public class OpenAPIGenerator {
             if (operation.getDescription() != null) {
                 description.append(operation.getDescription());
             }
-
             for (Map.Entry entry : endpointDocumentation.getCustomProperties().entrySet()) {
                 if (customAnnotationAddToDescriptionOption.getCustomAnnotationsAddToDescription() != null &&
-                    customAnnotationAddToDescriptionOption.getCustomAnnotationsAddToDescription().containsKey(entry.getKey())) {
+                    customAnnotationAddToDescriptionOption.getCustomAnnotationsAddToDescription().contains(entry.getKey())) {
                     // get the annotation class only
                     String annotationName = getClassName(entry.getKey().toString());
                     if (annotationName != null) {
