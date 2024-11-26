@@ -38,7 +38,14 @@ import static org.mockito.Mockito.mock;
 
 public class OpenAPIGeneratorTest {
 
-    OpenAPIGenerator generator;
+    private static final String CUSTOM_ANNOTATION_VALUE = "VIEW_REPORTS,MANAGE_REPORTS";
+    private static final String CUSTOM_ANNOTATION = "com.umbrella.guardian.mappings.RequiredPrivileges.names";
+    private static final String OPERATION_DESCR = "Test endpoint description";
+
+    private static final String ADDITIONAL_CUSTOM_ANNOTATION = "com.umbrella.guardian.mappings.RequiredFeatures.names";
+    private static final String ADDITIONAL_CUSTOM_ANNOTATION_VALUE = "REPORTING";
+
+            OpenAPIGenerator generator;
 
     @BeforeMethod
     public void setup() {
@@ -439,56 +446,36 @@ public class OpenAPIGeneratorTest {
     @Test
     public void when_addCustomPropertiesToDescription_invoke_getClassName_and_add_to_description() {
         // GIVEN
-        Operation operation = new Operation();
-        String operationDescr = "Test endpoint description";
-        operation.setDescription(operationDescr);
-
-        String customAnnotation = "com.umbrella.guardian.mappings.RequiredPrivileges.names";
-        Map<String, String> customProperties = new HashMap<>();
-        String customAnnotationValue = "VIEW_REPORTS,MANAGE_REPORTS";
-        customProperties.put(customAnnotation, customAnnotationValue);
-        MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
-        endpointDocumentation.setCustomProperties(customProperties);
-
-        CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
-        String customAnnotationToDescr = "customAnnotationsAddToDescription";
-        customAnnotationAddToDescriptionOption.process(customAnnotationToDescr, Lists.newArrayList(customAnnotation));
-        String expectedDescription = operationDescr + OpenAPIGenerator.LINE_SEPARATOR +
-                "RequiredPrivileges " + customAnnotationValue;
+        Operation operation = createOperation(OPERATION_DESCR);
+        MappingEndpointDocumentation mappingEndpointDocumentation = createMappingEndpointDocumentation();
+        CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = createCustomAnnotationAddToDescriptionOption();
 
         OpenAPIGenerator spyGenerator = spy(new OpenAPIGenerator("1.0", ""));
 
         // WHEN
-        spyGenerator.addCustomPropertiesToDescription(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
+        spyGenerator.addCustomPropertiesToDescription(operation, mappingEndpointDocumentation, customAnnotationAddToDescriptionOption);
 
         // THEN
-        verify(spyGenerator).getClassName(customAnnotation);
+        String expectedDescription = OPERATION_DESCR + OpenAPIGenerator.LINE_SEPARATOR +
+                "RequiredPrivileges " + CUSTOM_ANNOTATION_VALUE;
+        verify(spyGenerator).getClassName(CUSTOM_ANNOTATION);
         assertEquals(operation.getDescription(), expectedDescription);
     }
 
     @Test
     public void when_two_custom_propertiesToDescription_invoke_getClassName_and_add_to_description() {
         // GIVEN
-        Operation operation = new Operation();
-        String operationDescr = "Test endpoint description";
-        operation.setDescription(operationDescr);
+        Operation operation = createOperation(OPERATION_DESCR);
 
-        String firstAnnotation = "com.umbrella.guardian.mappings.RequiredPrivileges.names";
-        String secondAnnotation = "com.umbrella.guardian.mappings.RequiredFeatures.names";
         Map<String, String> customProperties = new HashMap<>();
-        String firstAnnotationValue = "VIEW_REPORTS,MANAGE_REPORTS";
-        String secondAnnotationValue = "REPORTING";
-        customProperties.put(firstAnnotation, firstAnnotationValue);
-        customProperties.put(secondAnnotation, secondAnnotationValue);
+        customProperties.put(CUSTOM_ANNOTATION, CUSTOM_ANNOTATION_VALUE);
+        customProperties.put(ADDITIONAL_CUSTOM_ANNOTATION, ADDITIONAL_CUSTOM_ANNOTATION_VALUE);
         MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
         endpointDocumentation.setCustomProperties(customProperties);
 
         CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
         String customAnnotation = "customAnnotationsAddToDescription";
-        customAnnotationAddToDescriptionOption.process(customAnnotation, Lists.newArrayList(firstAnnotation + "," + secondAnnotation));
-        String expectedDescription = operationDescr + OpenAPIGenerator.LINE_SEPARATOR +
-                "RequiredPrivileges " + firstAnnotationValue + OpenAPIGenerator.LINE_SEPARATOR +
-                "RequiredFeatures " + secondAnnotationValue;
+        customAnnotationAddToDescriptionOption.process(customAnnotation, Lists.newArrayList(CUSTOM_ANNOTATION + "," + ADDITIONAL_CUSTOM_ANNOTATION));
 
         OpenAPIGenerator spyGenerator = spy(new OpenAPIGenerator("1.0", ""));
 
@@ -496,21 +483,20 @@ public class OpenAPIGeneratorTest {
         spyGenerator.addCustomPropertiesToDescription(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
 
         // THEN
-        verify(spyGenerator).getClassName(firstAnnotation);
-        verify(spyGenerator).getClassName(secondAnnotation);
+        String expectedDescription = OPERATION_DESCR + OpenAPIGenerator.LINE_SEPARATOR +
+                "RequiredPrivileges " + CUSTOM_ANNOTATION_VALUE + OpenAPIGenerator.LINE_SEPARATOR +
+                "RequiredFeatures " + ADDITIONAL_CUSTOM_ANNOTATION_VALUE;
+        verify(spyGenerator).getClassName(CUSTOM_ANNOTATION);
+        verify(spyGenerator).getClassName(ADDITIONAL_CUSTOM_ANNOTATION);
         assertEquals(operation.getDescription(), expectedDescription);
     }
 
     @Test
     public void when_no_custom_properties_addCustomPropertiesToDescription_do_nothing() {
         // GIVEN
-        Operation operation = new Operation();
-        String operationDescr = "Test endpoint description";
-        operation.setDescription(operationDescr);
-
+        Operation operation = createOperation(OPERATION_DESCR);
         MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
         endpointDocumentation.setCustomProperties(null);
-
         CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
 
         OpenAPIGenerator spyGenerator = spy(new OpenAPIGenerator("1.0", ""));
@@ -519,27 +505,15 @@ public class OpenAPIGeneratorTest {
         spyGenerator.addCustomPropertiesToDescription(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
 
         // THEN
-        assertEquals(operation.getDescription(), operationDescr);
+        assertEquals(operation.getDescription(), OPERATION_DESCR);
     }
 
     @Test
     public void when_addCustomPropertiesToDescription_with_no_operation_description() {
         // GIVEN
-        Operation operation = new Operation();
-        String operationDescr = "Test endpoint description";
-        operation.setDescription(operationDescr);
-
-        String customAnnotationValue = "com.umbrella.guardian.mappings.RequiredPrivileges.names";
-        Map<String, String> customProperties = new HashMap<>();
-        customProperties.put(customAnnotationValue, "VIEW_REPORTS,MANAGE_REPORTS");
-        MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
-        endpointDocumentation.setCustomProperties(customProperties);
-
-        CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
-        String customAnnotation = "customAnnotationsAddToDescription";
-        customAnnotationAddToDescriptionOption.process(customAnnotation, Lists.newArrayList(customAnnotationValue));
-        String expectedDescription = operationDescr + OpenAPIGenerator.LINE_SEPARATOR + "RequiredPrivileges " +
-                "VIEW_REPORTS,MANAGE_REPORTS";
+        Operation operation = createOperation(OPERATION_DESCR);
+        MappingEndpointDocumentation endpointDocumentation = createMappingEndpointDocumentation();
+        CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = createCustomAnnotationAddToDescriptionOption();
 
         OpenAPIGenerator spyGenerator = spy(new OpenAPIGenerator("1.0", ""));
 
@@ -547,26 +521,22 @@ public class OpenAPIGeneratorTest {
         spyGenerator.addCustomPropertiesToDescription(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
 
         // THEN
-        verify(spyGenerator).getClassName(customAnnotationValue);
+        String expectedDescription = OPERATION_DESCR + OpenAPIGenerator.LINE_SEPARATOR + "RequiredPrivileges " +
+                "VIEW_REPORTS,MANAGE_REPORTS";
+        verify(spyGenerator).getClassName(CUSTOM_ANNOTATION);
         assertEquals(operation.getDescription(), expectedDescription);
     }
 
     @Test
     public void when_no_extracted_className_addCustomPropertiesToDescription_do_not_add_custom_annotation() {
         // GIVEN
-        Operation operation = new Operation();
-        String operationDescr = "Test endpoint description";
-        operation.setDescription(operationDescr);
+        Operation operation = createOperation(OPERATION_DESCR);
 
-        String customAnnotationValue = "names";
-        Map<String, String> customProperties = new HashMap<>();
-        customProperties.put(customAnnotationValue, "VIEW_REPORTS,MANAGE_REPORTS");
-        MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
-        endpointDocumentation.setCustomProperties(customProperties);
+        String customAnnotation = "names";
+        String customAnnotationValue = "VIEW_REPORTS,MANAGE_REPORTS";
+        MappingEndpointDocumentation endpointDocumentation = createMappingEndpointDocumentation(customAnnotation, customAnnotationValue);
 
-        CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
-        String customAnnotation = "customAnnotationsAddToDescription";
-        customAnnotationAddToDescriptionOption.process(customAnnotation, Lists.newArrayList(customAnnotationValue));
+        CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = createCustomAnnotationAddToDescriptionOption();
 
         OpenAPIGenerator spyGenerator = spy(new OpenAPIGenerator("1.0", ""));
 
@@ -574,13 +544,13 @@ public class OpenAPIGeneratorTest {
         spyGenerator.addCustomPropertiesToDescription(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
 
         // THEN
-        assertEquals(operation.getDescription(), operationDescr);
+        assertEquals(operation.getDescription(), OPERATION_DESCR);
     }
 
     @Test
     public void when_updateOperationDocumentation_invoke_addCustomPropertiesToDescription() {
         // GIVEN
-        Operation operation = new Operation();
+        Operation operation = createOperation(null);
         MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
         CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
         OpenAPIGenerator spyGenerator = spy(new OpenAPIGenerator("1.0", ""));
@@ -593,4 +563,32 @@ public class OpenAPIGeneratorTest {
         verify(spyGenerator).addCustomPropertiesToDescription(operation, endpointDocumentation, customAnnotationAddToDescriptionOption);
     }
 
+    private Operation createOperation(String description) {
+        Operation operation = new Operation();
+        operation.setDescription(description);
+        return operation;
+    }
+
+    private MappingEndpointDocumentation createMappingEndpointDocumentation(String customAnnotation, String customAnnotationValue) {
+        Map<String, String> customProperties = new HashMap<>();
+        customProperties.put(customAnnotation, customAnnotationValue);
+        MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
+        endpointDocumentation.setCustomProperties(customProperties);
+        return endpointDocumentation;
+    }
+
+    private MappingEndpointDocumentation createMappingEndpointDocumentation() {
+        Map<String, String> customProperties = new HashMap<>();
+        customProperties.put(CUSTOM_ANNOTATION, CUSTOM_ANNOTATION_VALUE);
+        MappingEndpointDocumentation endpointDocumentation = new MappingEndpointDocumentation();
+        endpointDocumentation.setCustomProperties(customProperties);
+        return endpointDocumentation;
+    }
+
+    private CustomAnnotationAddToDescriptionOption createCustomAnnotationAddToDescriptionOption() {
+        CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
+        String customAnnotationAddToDescr = "customAnnotationsAddToDescription";
+        customAnnotationAddToDescriptionOption.process(customAnnotationAddToDescr, Lists.newArrayList(CUSTOM_ANNOTATION));
+        return customAnnotationAddToDescriptionOption;
+    }
 }
