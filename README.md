@@ -78,17 +78,20 @@ ApiFest Doclet requires the following environment variables:
 
 For both modes:
 
-- mode - the Doclet support two modes in the moment ("mapping" and "doc").They can be comma separated.
+- mode - the Doclet support two modes at the moment ("mapping", "doc" and "openAPI"). They can be comma separated.
 - mapping.version - the version your API will be exposed externally;
-- application.path - the application path used to obtain all application resources, it will be preprended to each internal path;
+- application.path - the application path used to obtain all application resources, it will be prepended to each internal path;
 
-Only for the Doclet "mapping" mode:
+Only for the Doclet "mapping" and "openAPI" mode:
 
 - mapping.filename - the name of the mapping configuration file that will be generated;
 - backend.host - the host(your API is running on) where requests should be translated to;
 - backend.port - the port of the backend.host;
 - defaultActionClass - the fully qualified action class that will be added if no action is declared in Javadoc annotations;
-- defaultFilterClass - the fully qualified filter class that will be added if no filter is declared in Javadoc annotations.
+- defaultFilterClass - the fully qualified filter class that will be added if no filter is declared in Javadoc annotations;
+- customAnnotations - the fully qualified class for custom annotations. If more than one, they must be separated by ".";
+- customAnnotationsAddToDescription - the fully qualified class and its property for custom annotation that will be added 
+to the endpoint description. If more than one, they must be separated by "."
 
 Only for the Doclet "doc" mode:
 
@@ -148,6 +151,7 @@ If your project uses maven, here is an example integration of ApiFest Doclet in 
                     <additionalJOption>-J-DdefaultFilterClass=${defaultFilterClass}</additionalJOption>
                     <additionalJOption>-J-Dmode=${mode}</additionalJOption>
                     <additionalJOption>-J-DcustomAnnotations=annotationAQualifiedName,annotationBQualifiedName:value,annotationBQualifiedName:data</additionalJOption>
+                    <additionalJOption>-J-DcustomAnnotationsAddToDescription=annotationAQualifiedName,annotationBQualifiedName:value,annotationBQualifiedName:data</additionalJOption>
                   </additionalJOptions>
                   <useStandardDocletOptions>false</useStandardDocletOptions>
                 </configuration>

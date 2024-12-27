@@ -27,6 +27,7 @@ import com.apifest.doclet.option.ApiVersionOption;
 import com.apifest.doclet.option.ApplicationPathOption;
 import com.apifest.doclet.option.BackendHostOption;
 import com.apifest.doclet.option.BackendPortOption;
+import com.apifest.doclet.option.CustomAnnotationAddToDescriptionOption;
 import com.apifest.doclet.option.CustomAnnotationOption;
 import com.apifest.doclet.option.DefaultActionClassOption;
 import com.apifest.doclet.option.DefaultFilterClassOption;
@@ -93,13 +94,14 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
     MappingVersionOption mappingVersionOption = new MappingVersionOption();
     ModeOption modeOption = new ModeOption();
     CustomAnnotationOption customAnnotationOption = new CustomAnnotationOption();
+    CustomAnnotationAddToDescriptionOption customAnnotationAddToDescriptionOption = new CustomAnnotationAddToDescriptionOption();
     ApiVersionOption apiVersionOption = new ApiVersionOption();
     ApiTestServerOption apiTestServerOption = new ApiTestServerOption();
     private final Set<Option> supportedOptions = Set.of(
             applicationPathOption, backendHostOption, backendPortOption,
             defaultActionClassOption, defaultFilterClassOption, mappingDocsFilenameOption,
             mappingFilenameOption, mappingVersionOption, modeOption,
-            customAnnotationOption, apiVersionOption, apiTestServerOption
+            customAnnotationOption, customAnnotationAddToDescriptionOption, apiVersionOption, apiTestServerOption
     );
 
     OpenAPIGenerator openAPIGenerator;
@@ -210,7 +212,7 @@ public class Doclet implements jdk.javadoc.doclet.Doclet {
             }
             if (modeOption.getDocletModes().contains(DocletMode.OPEN_API)) {
                 openAPIGenerator = new OpenAPIGenerator(apiVersionOption.getApiVersion(), apiTestServerOption.getApiTestServer());
-                openAPIGenerator.generateOpenAPIFile(classes, parsedEndpoints, "openAPI-" + mappingDocsFilenameOption.getMappingDocsFilename());
+                openAPIGenerator.generateOpenAPIFile(classes, parsedEndpoints, "openAPI-" + mappingDocsFilenameOption.getMappingDocsFilename(), customAnnotationAddToDescriptionOption);
             }
         } catch (JsonGenerationException e) {
             System.out.println("ERROR: cannot create mapping documentation file, " + e.getMessage());
